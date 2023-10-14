@@ -250,23 +250,30 @@ def compute_persistence_diagram2(face_maps, filtration):
     D = D.change_ring(FiniteField(2))
 
     ''' *** Compute reduced from of D *** '''
-    def low(my_list):
+    def low(my_column):
         """
-        Computes the greatest index where my_list is not 0 (the "low" comes from a matrix representation, where this
+        Computes the greatest index where my_column is not 0 (the "low" comes from a matrix representation, where this
         entry is literally low
-        :param my_list: A python list (or implicitly convertable to python list)
-        :return: index low(my_list)
+        :param my_column: A column of a matrix
+        :return: index low(my_column)
         """
-        return next((index for index, value in reversed(list(enumerate(my_list))) if value != 0), None)
+        # Only iterate over non-zero entries
+        nonzero_indices = my_column.nonzero_positions()
+        if not nonzero_indices:
+            return None
+        return max(nonzero_indices)
 
-    # THe following algorithm only works over F_2, maybe F_p. For sure, it can't handle negative coefficients
-    # it improves the "first persistence algorithm" in the lecture notes from V. Welker
-    low_indices = [None] * D.ncols()  # saves the column indices where
+    low_indices = [None] * D.ncols()
+
     for k in range(D.ncols()):
-        low_k = low(D[:, k])
+        col_k = D.column(k)
+        low_k = low(col_k)
+
         while low_k is not None and low_indices[low_k] is not None:
-            D[:, k] = D[:, k] + D[:, low_indices[low_k]]
-            low_k = low(D[:, k])
+            col_k += D.column(low_indices[low_k])
+            low_k = low(col_k)
+
+        D.set_column(k, col_k)
         if low_k is not None:
             low_indices[low_k] = k
 
@@ -277,7 +284,7 @@ def compute_persistence_diagram2(face_maps, filtration):
     persistence_diagram = []
     for k in range(D.ncols()):
         persistence_diagram.append([None, None, None])
-        low_k = low(D[:, k])
+        low_k = low(D.column(k))
         if low_k is None:
             # a new persistence is born here, since the kernel of our matrix got bigger
             persistence_diagram[k][0] = global_dimension[k]

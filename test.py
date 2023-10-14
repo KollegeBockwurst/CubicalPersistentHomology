@@ -28,7 +28,7 @@ def filtrate_by_diameter(adjacency_matrix):
     return int(np.max(distance_matrix))
 
 
-G = Graph([(0, 1), (1, 2),(2,3),(3,4),(4,0)])
+G = Graph([(0, 1),(1,2),(2,3),(3,4),(4,0)])
 max_dim = 3
 
 print("Calculating singular, non-degenerated cubes...")
