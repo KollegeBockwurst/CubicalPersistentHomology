@@ -165,16 +165,48 @@ def create_face_maps(singular_cubes: list):
     return face_maps
 
 
-def filtrate_cubes(singular_cubes: list, my_graph: Graph, filtrate_function):
-    # TODO: possibility for computing floyd-warshall only once?
+def filtrate_cubes(singular_cubes: list, my_graph: Graph, filtrate_function, **kwargs):
+    def floyd_warshall(adjacency_matrix):
+        """
+            Compute the shortest path distances between all pairs of vertices in a graph using the Floyd-Warshall algorithm.
+
+            :return: np.ndarray
+                A 2D NumPy array where the element at (i, j) is the shortest path distance from vertex i to vertex j.
+                If there is no path between vertex i and vertex j, the value will be np.inf.
+            """
+        # Initialize the distance matrix with the input graph adjacency matrix
+        distance_matrix = np.full(adjacency_matrix.shape, np.inf)
+        distance_matrix[adjacency_matrix == 1] = 1
+        np.fill_diagonal(distance_matrix, 0)
+        # Number of vertices in the graph
+        num_vertices = distance_matrix.shape[0]
+
+        # Main loop: try all possible intermediate vertices
+        for k in range(num_vertices):
+            for i in range(num_vertices):
+                for j in range(num_vertices):
+                    # Update the distance matrix by considering the path through vertex k
+                    if distance_matrix[i][k] + distance_matrix[k][j] < distance_matrix[i][j]:
+                        distance_matrix[i][j] = distance_matrix[i][k] + distance_matrix[k][j]
+
+        return distance_matrix
+
     graph_adjacency = np.matrix(my_graph.adjacency_matrix())  # adjacency matrix with zeros on main diagonal
+    if "use_distance" in kwargs.keys() and kwargs["use_distance"]:
+        graph_adjacency = floyd_warshall(graph_adjacency)
+
     filtration_values = []
+    inf_counter = 0
     for cube_dim in range(len(singular_cubes)):
         filtration_values.append([])
         for singular_cube in singular_cubes[cube_dim]:
             unique_image = np.unique(singular_cube)
             subgraph_adjacency = graph_adjacency[np.ix_(unique_image, unique_image)]
             filtration_values[cube_dim].append(filtrate_function(subgraph_adjacency))
+            if filtration_values[cube_dim][-1] == float("inf"):
+                inf_counter += 1
+    if inf_counter > 0:
+        print(f'   Warning: Lost {inf_counter} cubes to infinity filtration values.')
     return filtration_values
 
 
@@ -188,7 +220,7 @@ def compute_persistence_diagram2(face_maps, filtration):
     :return: persistence diagram
     """
     start_time = time.time()
-    max_step = max_value = max(val for sublist in filtration for val in sublist)
+    max_step = max_value = max(val if val < infinity else 0 for sublist in filtration for val in sublist)
     max_dimension = len(filtration) - 1  # maximal dimension of singular cubes in the provided data
 
     global_ordering = []  # global ordering with respect to the (original) face_map and filtration variables
@@ -224,7 +256,9 @@ def compute_persistence_diagram2(face_maps, filtration):
                 break
         else:
             actual_step += 1
-            if actual_step > max_step:  # i.e. all singular cubes should have been handled
+            if float("inf") > actual_step > max_step:  # i.e. all singular cubes should have been handled
+                actual_step = float("inf")
+            elif actual_step == float("inf"):
                 break
 
     ''' *** create matrix D by merging all face_maps w.r.t. the global ordering *** '''
@@ -241,7 +275,7 @@ def compute_persistence_diagram2(face_maps, filtration):
     sorted_rows = [D.rows()[global_reversed_ordering[i]] for i in range(D.nrows())]
     D = Matrix(sorted_rows)
 
-    print(f'   Create Matrix D w.r.t. global ordering: {time.time()-start_time}s')
+    print(f'   Create Matrix D w.r.t. global ordering: {time.time() - start_time}s')
     start_time = time.time()
 
     ''' *** Convert matrix to a given Ring, F_2 for now *** '''
@@ -250,6 +284,7 @@ def compute_persistence_diagram2(face_maps, filtration):
     D = D.change_ring(FiniteField(2))
 
     ''' *** Compute reduced from of D *** '''
+
     def low(my_column):
         """
         Computes the greatest index where my_column is not 0 (the "low" comes from a matrix representation, where this
@@ -277,7 +312,7 @@ def compute_persistence_diagram2(face_maps, filtration):
         if low_k is not None:
             low_indices[low_k] = k
 
-    print(f'   Compute reduced form of D: {time.time()-start_time}s')
+    print(f'   Compute reduced form of D: {time.time() - start_time}s')
     start_time = time.time()
 
     ''' *** read persistence diagram from reduces matrix D *** '''
@@ -286,6 +321,8 @@ def compute_persistence_diagram2(face_maps, filtration):
         persistence_diagram.append([None, None, None])
         low_k = low(D.column(k))
         if low_k is None:
+            if global_filtration[k] == float("inf"):  # the persistence never gets born
+                break
             # a new persistence is born here, since the kernel of our matrix got bigger
             persistence_diagram[k][0] = global_dimension[k]
             persistence_diagram[k][1] = global_filtration[k]
@@ -300,7 +337,7 @@ def compute_persistence_diagram2(face_maps, filtration):
         ordered_diagram[j] = list(tuple(entry[1:]) for entry in persistence_diagram
                                   if entry[0] is not None and entry[0] == j and entry[1] != entry[2])
 
-    print(f'   Read eprsistence from reduced form: {time.time()-start_time}s')
+    print(f'   Read persistence from reduced form: {time.time() - start_time}s')
     start_time = time.time()
     return ordered_diagram
 
@@ -308,6 +345,7 @@ def compute_persistence_diagram2(face_maps, filtration):
 def draw_diagram(diagram, title, max_step):
     """
     opj
+    :param max_step:
     :param diagram: k
     :param title: ojn
     :return: on
@@ -323,23 +361,105 @@ def draw_diagram(diagram, title, max_step):
     for dim in sorted(data_by_dimension.keys()):
         data = data_by_dimension[dim]
         # Sort data for better visualization
-        data = sorted(data, key=lambda x: x[1]-x[0], reverse=True)
+        data = sorted(data, key=lambda x: x[1] - x[0], reverse=True)
 
         for birth, death in data:
             plt.plot([birth, death if death < infinity else max_step], [idx, idx], color=colors[dim], lw=2,
-                     label=f'Dimension {dim}' if 'Dimension '+str(dim) not in [l.get_label()
-                                                                               for l in plt.gca().get_lines()] else "")
+                     label=f'Dimension {dim}' if 'Dimension ' + str(dim) not in [l.get_label()
+                                                                                 for l in
+                                                                                 plt.gca().get_lines()] else "")
 
             plt.scatter([birth], [idx], color=colors[dim], s=50)  # Highlighting start
 
             if death != float('inf'):
-                plt.scatter([death], [idx], color=colors[dim], s=50)  # Highlighting end if not infinite
+                plt.scatter([death], [idx], color="black", s=50)  # Highlighting end if not infinite
             idx += 1
 
-    plt.yticks(range(idx), [f"Feature {i+1}" for i in range(idx)])
+    plt.yticks(range(idx), [f"Feature {i + 1}" for i in range(idx)])
     plt.xlabel('Scale (Birth-Death)')
     plt.title(f'Barcode Diagram - {title}')
     plt.grid(True, which='both', linestyle='--', linewidth=0.7)
-    plt.legend(loc="upper right")
+    plt.legend(loc="upper left")
     plt.tight_layout()
     plt.show()
+
+
+def persistence(G, filtration_function, max_dim, **kwargs):
+    time_measurement = False
+    if "time_measurement" in kwargs.keys() and kwargs["time_measurement"]:
+        time_measurement = True
+
+    if time_measurement:
+        print("Calculating singular, non-degenerated cubes...")
+    start_time = time.time()
+    singular_cubes = find_singular_non_degenerate_cubes(G, max_dim)
+    if time_measurement:
+        print(f'{time.time() - start_time} s')
+        print("Calculating face maps...")
+
+    start_time = time.time()
+    face_maps = create_face_maps(singular_cubes)
+
+    if time_measurement:
+        print(f'{time.time() - start_time} s')
+        print("Filtrating face maps...")
+
+    start_time = time.time()
+    use_distances = "use_distances" in kwargs.keys() and kwargs["use_distances"]
+    filtration = filtrate_cubes(singular_cubes, G, filtration_function, use_distance=use_distances)
+
+    if time_measurement:
+        print(f'{time.time() - start_time} s')
+        print("Calculating persistence diagram...")
+
+    start_time = time.time()
+    diagram = compute_persistence_diagram2(face_maps, filtration)
+
+    if time_measurement:
+        print(f'{time.time() - start_time} s')
+        print("Drawing persistence diagram...")
+
+    start_time = time.time()
+    max_steps = max_value = max(0 if val == float("inf") else val for sublist in filtration for val in sublist)
+    draw_diagram(diagram, f'{kwargs["title"] if "title" in kwargs.keys() else ""}'
+                          f'\n {filtration_function.__name__}, max_dim: {max_dim}',max_steps)
+
+    if time_measurement:
+        print(f'{time.time() - start_time} s')
+        print("Compute betti numbers using SageMath")
+
+    start_time = time.time()
+    chain_complexes = []
+    betti_numbers = []
+
+    for i in range(max_steps):
+        filtered_face_maps = dict()
+        for k in range(np.max(list(face_maps.keys())) + 1):
+            col_indices = [index for index, value in enumerate(filtration[k]) if value <= i]
+            row_indices = []
+            if k > 0:
+                row_indices = [index for index, value in enumerate(filtration[k - 1]) if value <= i]
+            filtered_face_maps[k] = \
+                Matrix([[face_maps[k][i, j] for j in col_indices] for i in row_indices]).change_ring(FiniteField(2))
+        chain_complexes.append(ChainComplex(filtered_face_maps, degree_of_differential=-1))
+        betti_numbers.append(chain_complexes[i].betti())
+
+    if time_measurement:
+        print(f'{time.time() - start_time} s')
+        print("Consistency check")
+
+    start_time = time.time()
+    for i in range(len(betti_numbers)):
+        for j in betti_numbers[i].keys():
+            if j >= len(diagram):
+                continue
+            counter = 0
+            for tupel in diagram[j]:
+                if tupel[0] <= i < tupel[1]:
+                    counter += 1
+            if counter != betti_numbers[i][j]:
+                print(f'Consistency check failed in persistence step {i}')
+                break
+
+    if time_measurement:
+        print(f'{time.time() - start_time} s')
