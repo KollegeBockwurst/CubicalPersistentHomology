@@ -216,10 +216,10 @@ def compute_persistence_diagram2(face_maps, filtration):
     :param face_maps: List containing face_maps. the i-th item is the i-th face map, i.e. the face map from dim i to i-1
     :param filtration: List of lists of integers. filtration[i][j] is the filtration value of the jth singular cube of
     in the ith dimension
-    :param max_step: maximum filtration value, anything above will not be recognized
     :return: persistence diagram
     """
-    start_time = time.time()
+    start_time = time.time()  # time measurement
+    # max_step is the maximum filtration value except infinity
     max_step = max_value = max(val if val < infinity else 0 for sublist in filtration for val in sublist)
     max_dimension = len(filtration) - 1  # maximal dimension of singular cubes in the provided data
 
@@ -227,14 +227,15 @@ def compute_persistence_diagram2(face_maps, filtration):
     global_filtration = []  # filtration values of the i-th singular cube, w.r.t. the global ordering
     global_dimension = []  # dimension of the i-th singular cube, w.r.t. the global ordering
     ''' *** fetch general information about provided arguments *** '''
-    number_of_singular_cubes = [0] * (
-            max_dimension + 1)  # number_of_singular_cubes[i] saves number of cubes of dimension <= i
+    # number_of_singular_cubes[i] saves number of cubes of dimension <= i
+    number_of_singular_cubes = [0] * (max_dimension + 1)
+    # count rows of face_maps:
     for k in range(max_dimension + 1):
         number_of_singular_cubes[k] = face_maps[k].ncols()
         if k > 0:
             number_of_singular_cubes[k] += number_of_singular_cubes[k - 1]
-    # global_reversed_ordering = [None] * number_of_singular_cubes[-1]
-    global_reversed_ordering = []
+    # global_reversed_ordering[i] stores the new position of the former i-th cube, resp. to the ordering in face_maps
+    global_reversed_ordering = [None] * number_of_singular_cubes[-1]  # initialization
     ''' *** find global ordering: *** '''
     # pre-sort each dimension w.r.t. their filtration values:
     pre_sort = []
@@ -242,8 +243,9 @@ def compute_persistence_diagram2(face_maps, filtration):
         pre_sort.append(np.argsort(filtration[k], axis=0))
 
     actual_step = 0  # saves the lowest filtration value where more cubes might need to be added to global ordering
-    # saves which singular cubes have already been added to global ordering w.r.t. dimensions:
+    # index_marker saves which singular cubes have already been added to global ordering w.r.t. dimensions:
     index_marker = [0] * len(filtration)
+    cube_counter = 0  # saves the total number of already oredered cubes
     while True:
         for k in range(max_dimension + 1):
             if index_marker[k] < len(filtration[k]) and filtration[k][pre_sort[k][index_marker[k]]] == actual_step:
@@ -251,7 +253,8 @@ def compute_persistence_diagram2(face_maps, filtration):
                 global_filtration.append(actual_step)
                 global_dimension.append(k)
                 reversed_index = (number_of_singular_cubes[k - 1] if k > 0 else 0) + pre_sort[k][index_marker[k]]
-                global_reversed_ordering.append(reversed_index)
+                global_reversed_ordering[reversed_index] = cube_counter
+                cube_counter += 1
                 index_marker[k] += 1
                 break
         else:
@@ -261,66 +264,67 @@ def compute_persistence_diagram2(face_maps, filtration):
             elif actual_step == float("inf"):
                 break
 
-    ''' *** create matrix D by merging all face_maps w.r.t. the global ordering *** '''
-    D = Matrix(number_of_singular_cubes[-1], number_of_singular_cubes[-1])
+    ''' *** create sparse matrix representation R by using all face_maps and the global ordering *** '''
+    R = []  # array initialization. R[i] saves the row indices of the i-th columnn, where the value is 1 (in F_2)
     for k in range(number_of_singular_cubes[-1]):
+        R.append([])
         cube_dimension = global_dimension[k]
         if cube_dimension > 0:
             start_index = number_of_singular_cubes[cube_dimension - 2] if cube_dimension > 1 else 0
-            end_index = number_of_singular_cubes[cube_dimension - 1]
-            D[start_index:end_index, k] = \
-                face_maps[cube_dimension][:, global_ordering[k][1]]
+            column = face_maps[cube_dimension].columns()[global_ordering[k][1]]
+            for j in range(face_maps[cube_dimension].nrows()):
+                if column[j] % 2 == 1:  # implicit conversion to Ring F_2
+                    R[k].append(global_reversed_ordering[start_index + j])
 
-    # sort rows according to global ordering:
-    sorted_rows = [D.rows()[global_reversed_ordering[i]] for i in range(D.nrows())]
-    D = Matrix(sorted_rows)
-
-    print(f'   Create Matrix D w.r.t. global ordering: {time.time() - start_time}s')
+    print(f'   Create representation R w.r.t. global ordering: {time.time() - start_time}s')
     start_time = time.time()
-
-    ''' *** Convert matrix to a given Ring, F_2 for now *** '''
-    # TODO: check if other rings are also possible
-
-    D = D.change_ring(FiniteField(2))
 
     ''' *** Compute reduced from of D *** '''
 
-    def low(my_column):
+    def top(my_column):
         """
-        Computes the greatest index where my_column is not 0 (the "low" comes from a matrix representation, where this
-        entry is literally low
+        Computes the greatest index where my_column is not 0
+        uses sparse matrix representation
         :param my_column: A column of a matrix
-        :return: index low(my_column)
+        :return: index top(my_column)
         """
         # Only iterate over non-zero entries
-        nonzero_indices = my_column.nonzero_positions()
-        if not nonzero_indices:
+        if len(my_column) == 0:
             return None
-        return max(nonzero_indices)
+        return max(my_column)
 
-    low_indices = [None] * D.ncols()
+    # top_indices[i] saves the column index of the column with top(column) == i
+    top_indices = [None] * len(R)
 
-    for k in range(D.ncols()):
-        col_k = D.column(k)
-        low_k = low(col_k)
+    # move through matrix and perform gauss elimination, i.e. persistent algorithm
+    for k in range(len(R)):
+        col_k = R[k]
+        top_k = top(col_k)
 
-        while low_k is not None and low_indices[low_k] is not None:
-            col_k += D.column(low_indices[low_k])
-            low_k = low(col_k)
+        while top_k is not None and top_indices[top_k] is not None:
+            # add columns w.r.t. sparse matrix representation in F_2:
+            for row_index in R[top_indices[top_k]]:
+                if row_index in col_k:
+                    col_k.remove(row_index)
+                else:
+                    col_k.append(row_index)
+            top_k = top(col_k)
 
-        D.set_column(k, col_k)
-        if low_k is not None:
-            low_indices[low_k] = k
+        R[k] = col_k  # probably unneccessary, since R[k] is already col_k
+        if top_k is not None:
+            top_indices[top_k] = k
 
     print(f'   Compute reduced form of D: {time.time() - start_time}s')
     start_time = time.time()
 
     ''' *** read persistence diagram from reduces matrix D *** '''
+    # persistence_diagram[i] consists a list [a,b,c] of length three showing if a persistent feature in dim. a is
+    # born at step b, dies in step c and is born since the i-th column of the matrix is zero
     persistence_diagram = []
-    for k in range(D.ncols()):
-        persistence_diagram.append([None, None, None])
-        low_k = low(D.column(k))
-        if low_k is None:
+    for k in range(len(R)):
+        persistence_diagram.append([None, None, None])  # initialization
+        top_k = top(R[k])  # compute top(R[k])
+        if top_k is None:  # i.e. column is zero, a new persistent feature is born
             if global_filtration[k] == float("inf"):  # the persistence never gets born
                 break
             # a new persistence is born here, since the kernel of our matrix got bigger
@@ -329,7 +333,7 @@ def compute_persistence_diagram2(face_maps, filtration):
             persistence_diagram[k][2] = float('inf')
         else:
             # a persistence must have died here, since the image got bigger (thanks to the reduced form)
-            persistence_diagram[low_k][2] = global_filtration[k]
+            persistence_diagram[top_k][2] = global_filtration[k]
 
     # filter persistence diagram for unnecessary entries
     ordered_diagram = dict()
@@ -342,9 +346,9 @@ def compute_persistence_diagram2(face_maps, filtration):
     return ordered_diagram
 
 
-def draw_diagram(diagram, title, max_step):
+def draw_diagram(diagram, title, max_step, **kwargs):
     """
-    opj
+    Draws a persistent diagram. This code was written by ChatGPT
     :param max_step:
     :param diagram: k
     :param title: ojn
@@ -381,10 +385,21 @@ def draw_diagram(diagram, title, max_step):
     plt.grid(True, which='both', linestyle='--', linewidth=0.7)
     plt.legend(loc="upper left")
     plt.tight_layout()
-    plt.show()
+    plt.savefig(f'{title}_{time.time()}.png')
+    if "show_plot" not in kwargs.keys() or kwargs["show_plot"]:
+        plt.show()
 
 
 def persistence(G, filtration_function, max_dim, **kwargs):
+    """
+    Performs the whole persistent algorithm on G
+    :param G: A sagemath graph
+    :param filtration_function: A filtration function
+    :param max_dim: cubes of dim >max_dim will not be considered
+    :param kwargs: use_distances=True: a distance matrix rather than an adjacency matrix will be given
+    to the filtration function
+    :return: side-effect only, draws and saves a persistent diagram
+    """
     time_measurement = False
     if "time_measurement" in kwargs.keys() and kwargs["time_measurement"]:
         time_measurement = True
@@ -422,7 +437,8 @@ def persistence(G, filtration_function, max_dim, **kwargs):
     start_time = time.time()
     max_steps = max_value = max(0 if val == float("inf") else val for sublist in filtration for val in sublist)
     draw_diagram(diagram, f'{kwargs["title"] if "title" in kwargs.keys() else ""}'
-                          f'\n {filtration_function.__name__}, max_dim: {max_dim}',max_steps)
+                          f'\n {filtration_function.__name__}, max_dim: {max_dim}', max_steps,
+                 show_plot=kwargs["show_plot"] if "show_plot" in kwargs.keys() else True)
 
     if time_measurement:
         print(f'{time.time() - start_time} s')
