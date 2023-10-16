@@ -385,7 +385,8 @@ def draw_diagram(diagram, title, max_step, **kwargs):
     plt.grid(True, which='both', linestyle='--', linewidth=0.7)
     plt.legend(loc="upper left")
     plt.tight_layout()
-    plt.savefig(f'{title}_{time.time()}.png')
+    file_name_title = title.replace("\n", "_").replace(" ", "_")
+    plt.savefig(f'{file_name_title}_{time.time()}.png')
     if "show_plot" not in kwargs.keys() or kwargs["show_plot"]:
         plt.show()
 
