@@ -1,3 +1,4 @@
+from matplotlib import image as mpimg
 from sage.all import *
 import numpy as np
 import matplotlib.pyplot as plt
@@ -166,34 +167,8 @@ def create_face_maps(singular_cubes: list):
 
 
 def filtrate_cubes(singular_cubes: list, my_graph: Graph, filtrate_function, **kwargs):
-    def floyd_warshall(adjacency_matrix):
-        """
-            Compute the shortest path distances between all pairs of vertices in a graph using the Floyd-Warshall algorithm.
-
-            :return: np.ndarray
-                A 2D NumPy array where the element at (i, j) is the shortest path distance from vertex i to vertex j.
-                If there is no path between vertex i and vertex j, the value will be np.inf.
-            """
-        # Initialize the distance matrix with the input graph adjacency matrix
-        distance_matrix = np.full(adjacency_matrix.shape, np.inf)
-        distance_matrix[adjacency_matrix == 1] = 1
-        np.fill_diagonal(distance_matrix, 0)
-        # Number of vertices in the graph
-        num_vertices = distance_matrix.shape[0]
-
-        # Main loop: try all possible intermediate vertices
-        for k in range(num_vertices):
-            for i in range(num_vertices):
-                for j in range(num_vertices):
-                    # Update the distance matrix by considering the path through vertex k
-                    if distance_matrix[i][k] + distance_matrix[k][j] < distance_matrix[i][j]:
-                        distance_matrix[i][j] = distance_matrix[i][k] + distance_matrix[k][j]
-
-        return distance_matrix
 
     graph_adjacency = np.matrix(my_graph.adjacency_matrix())  # adjacency matrix with zeros on main diagonal
-    if "use_distance" in kwargs.keys() and kwargs["use_distance"]:
-        graph_adjacency = floyd_warshall(graph_adjacency)
 
     filtration_values = []
     inf_counter = 0
@@ -249,6 +224,8 @@ def compute_persistence_diagram2(face_maps, filtration):
     while True:
         for k in range(max_dimension + 1):
             if index_marker[k] < len(filtration[k]) and filtration[k][pre_sort[k][index_marker[k]]] == actual_step:
+                if len(global_ordering) == 302:
+                    print(f"{k} {pre_sort[k][index_marker[k]]}!")
                 global_ordering.append((k, pre_sort[k][index_marker[k]]))
                 global_filtration.append(actual_step)
                 global_dimension.append(k)
@@ -333,6 +310,9 @@ def compute_persistence_diagram2(face_maps, filtration):
             persistence_diagram[k][2] = float('inf')
         else:
             # a persistence must have died here, since the image got bigger (thanks to the reduced form)
+            if len(persistence_diagram) <= top_k:
+                print(f"{k} {top_k} {len(persistence_diagram)}")
+                print(R)
             persistence_diagram[top_k][2] = global_filtration[k]
 
     # filter persistence diagram for unnecessary entries
@@ -358,37 +338,54 @@ def draw_diagram(diagram, title, max_step, **kwargs):
     data_by_dimension = diagram
     colors = ['blue', 'orange', 'green', 'red', 'pink']
 
-    plt.figure(figsize=(8, 6))
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(16, 6))
 
     idx = 0
-
     for dim in sorted(data_by_dimension.keys()):
         data = data_by_dimension[dim]
         # Sort data for better visualization
         data = sorted(data, key=lambda x: x[1] - x[0], reverse=True)
 
         for birth, death in data:
-            plt.plot([birth, death if death < infinity else max_step], [idx, idx], color=colors[dim], lw=2,
+            ax2.plot([birth, death if death < infinity else max_step], [idx, idx], color=colors[dim], lw=2,
                      label=f'Dimension {dim}' if 'Dimension ' + str(dim) not in [l.get_label()
                                                                                  for l in
-                                                                                 plt.gca().get_lines()] else "")
+                                                                                 ax2.get_lines()] else "")
 
-            plt.scatter([birth], [idx], color=colors[dim], s=50)  # Highlighting start
+            ax2.scatter([birth], [idx], color=colors[dim], s=50)  # Highlighting start
 
             if death != float('inf'):
-                plt.scatter([death], [idx], color="black", s=50)  # Highlighting end if not infinite
+                ax2.scatter([death], [idx], color="black", s=50)  # Highlighting end if not infinite
             idx += 1
 
-    plt.yticks(range(idx), [f"Feature {i + 1}" for i in range(idx)])
-    plt.xlabel('Scale (Birth-Death)')
-    plt.title(f'Barcode Diagram - {title}')
-    plt.grid(True, which='both', linestyle='--', linewidth=0.7)
-    plt.legend(loc="upper left")
-    plt.tight_layout()
+    ax2.set_yticks(range(idx))
+    ax2.set_yticklabels([f"Feature {i + 1}" for i in range(idx)])
+    ax2.set_xlabel('Scale (Birth-Death)')
+    ax2.grid(True, which='both', linestyle='--', linewidth=0.7)
+    ax2.legend(loc="upper left")
+
     file_name_title = title.replace("\n", "_").replace(" ", "_")
-    plt.savefig(f'{file_name_title}_{time.time()}.png')
-    if "show_plot" not in kwargs.keys() or kwargs["show_plot"]:
-        plt.show()
+
+    image_path = "temp.png"
+    img = mpimg.imread(image_path)
+    ax1.imshow(img)
+    ax1.axis('off')
+
+    result = ""
+    for dim in sorted(data_by_dimension.keys()):
+        data = data_by_dimension[dim]
+        result += "# persistence dim " + str(dim) + ": " + str(len(data)) + "\n"
+
+    # Adding a textbox
+    ax3.text(0, 1, result, fontsize=12, color='blue', ha='left', va='top')
+
+    # Removing axes
+    ax3.axis('off')
+
+    plt.title(f'Barcode Diagram - {title}')
+    plt.tight_layout()
+    plt.savefig(title.replace("\n", "_").replace(" ", "_") + "_" + str(time.time()) + ".png")
+    return plt
 
 
 def persistence(G, filtration_function, max_dim, **kwargs):
@@ -421,8 +418,7 @@ def persistence(G, filtration_function, max_dim, **kwargs):
         print("Filtrating face maps...")
 
     start_time = time.time()
-    use_distances = "use_distances" in kwargs.keys() and kwargs["use_distances"]
-    filtration = filtrate_cubes(singular_cubes, G, filtration_function, use_distance=use_distances)
+    filtration = filtrate_cubes(singular_cubes, G, filtration_function)
 
     if time_measurement:
         print(f'{time.time() - start_time} s')
@@ -436,11 +432,13 @@ def persistence(G, filtration_function, max_dim, **kwargs):
         print("Drawing persistence diagram...")
 
     start_time = time.time()
+    G.plot().save(filename="temp.png")
     max_steps = max_value = max(0 if val == float("inf") else val for sublist in filtration for val in sublist)
-    draw_diagram(diagram, f'{kwargs["title"] if "title" in kwargs.keys() else ""}'
+    draw_diagram(diagram, f'{G.name()}'
                           f'\n {filtration_function.__name__}, max_dim: {max_dim}', max_steps,
                  show_plot=kwargs["show_plot"] if "show_plot" in kwargs.keys() else True)
-
+    # Enable sage math consistency check (RAM intensive):
+    return;
     if time_measurement:
         print(f'{time.time() - start_time} s')
         print("Compute betti numbers using SageMath")
