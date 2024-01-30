@@ -1,6 +1,5 @@
-from concurrent.futures import ThreadPoolExecutor
+from multiprocessing import Pool
 from sage.all import Graph, identity_matrix
-
 
 def generate_singular_cubes(adjacency_graph, max_dim: int, start_options: list):
     """
@@ -126,21 +125,21 @@ class SingularCubeGeneratorScheduler:
         adjacency_graph = self.graph.adjacency_matrix() + identity_matrix(self.graph.order())  # adjacency matrix of
         # the given graph
         result = [[] for _ in range(self.max_dim + 1)]
-        with ThreadPoolExecutor(max_workers=self.thread_number) as executor:
-            futures = []
-            numbers_per_thread = (self.graph.order() // self.thread_number)+1
+        start_options = []
+        numbers_per_thread = (self.graph.order() // self.thread_number)+1
+        for i in range(self.thread_number):
+            start_index = i*numbers_per_thread
+            stop_index = min((i+1)*numbers_per_thread, self.graph.order())
+            start_options.append(list(range(start_index, stop_index)))
+            if stop_index == self.graph.order():
+                break
 
-            for i in range(self.thread_number):
-                start_index = i*numbers_per_thread
-                stop_index = max((i+1)*numbers_per_thread, self.graph.order())
-                futures.append(
-                    executor.submit(generate_singular_cubes, adjacency_graph=adjacency_graph, max_dim=self.max_dim,
-                                    start_options=list(range(start_index, stop_index))))
-                if stop_index == self.graph.order():
-                    break
+        args = [(adjacency_graph, self.max_dim, start_option) for start_option in start_options]
 
-            for future in futures:
-                future_result = future.result()
-                for i in range(self.max_dim + 1):
-                    result[i] = result[i] + future_result[i]
+        with Pool(self.thread_number) as p:
+            p_results = p.starmap(generate_singular_cubes, args)
+
+        for p_result in p_results:
+            for i in range(self.max_dim + 1):
+                result[i].extend(p_result[i])
         return result
