@@ -41,7 +41,7 @@ def generate_face_maps(singular_cubes, start, stop):
                     if face_1 == singular_cubes[cube_dim - 1][cube_index]:
                         matrix_column[cube_index] -= summand
                 summand = -summand  # change summand sign
-            face_matrix[j] = matrix_column  # add column to matrix
+            face_matrix[j-start_index] = matrix_column  # add column to matrix
         result[cube_dim] = face_matrix
 
     return result
@@ -67,12 +67,14 @@ class FaceMapGeneratorScheduler:
             number = numbers_per_thread
             while index + number > len(self.singular_cubes[dim]):
                 number += index - len(self.singular_cubes[dim])
+                index = 0
                 dim += 1
                 if dim >= len(self.singular_cubes):
                     break
 
             stop_dim = dim if dim < len(self.singular_cubes) else len(self.singular_cubes) - 1
             stop_index = index + number if dim < len(self.singular_cubes) else len(self.singular_cubes[-1])
+            index = stop_index
             args.append([self.singular_cubes, [start_dim, start_index], [stop_dim, stop_index]])
             if dim >= len(self.singular_cubes):
                 break
@@ -81,6 +83,7 @@ class FaceMapGeneratorScheduler:
             p_results = p.starmap(generate_face_maps, args)
 
         face_maps = dict()  # result dictionary
+        face_maps[0] = Matrix(0, len(self.singular_cubes[0]))
         for p_result in p_results:
             for dim in range(len(p_result)):
                 if p_result[dim] is not None:
@@ -92,5 +95,4 @@ class FaceMapGeneratorScheduler:
         for dim in face_maps.keys():
             face_maps[dim] = Matrix(ZZ, face_maps[dim]).transpose()
 
-        face_maps[0] = Matrix(0, len(self.singular_cubes[0]))
         return face_maps
