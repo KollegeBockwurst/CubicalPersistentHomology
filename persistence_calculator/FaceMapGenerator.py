@@ -83,7 +83,6 @@ class FaceMapGeneratorScheduler:
             p_results = p.starmap(generate_face_maps, args)
 
         face_maps = dict()  # result dictionary
-        face_maps[0] = Matrix(0, len(self.singular_cubes[0]))
         for p_result in p_results:
             for dim in range(len(p_result)):
                 if p_result[dim] is not None:
@@ -95,4 +94,5 @@ class FaceMapGeneratorScheduler:
         for dim in face_maps.keys():
             face_maps[dim] = Matrix(ZZ, face_maps[dim]).transpose()
 
+        face_maps[0] = Matrix(0, len(self.singular_cubes[0]))
         return face_maps

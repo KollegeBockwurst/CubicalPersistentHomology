@@ -12,7 +12,7 @@ from persistence_calculator.SingularCubeGenerator import SingularCubeGeneratorSc
 
 G = sage.graphs.graph_generators.GraphGenerators.CubeGraph(4)
 max_dim = 2
-filtration_function = filtration_functions.filtrate_by_diameter()
+filtration_function = filtration_functions.filtrate_by_diameter
 
 stamp = time.time()
 scheduler = SingularCubeGeneratorScheduler(G, max_dim + 1, 8)
@@ -22,7 +22,7 @@ print(time.time() - stamp)
 stamp = time.time()
 scheduler = FaceMapGeneratorScheduler(cubes2, 8)
 face_maps2 = scheduler.run()
-print(time.time() - stamp)
+print("---")
 stamp = time.time()
 scheduler = FiltrationCalculatorScheduler(filtration_function, G, cubes2, 8)
 filtration2 = scheduler.run()
