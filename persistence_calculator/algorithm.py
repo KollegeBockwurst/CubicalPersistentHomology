@@ -1,4 +1,6 @@
 import multiprocessing
+import os
+import shutil
 import time
 
 from persistence_calculator.FaceMapGenerator import FaceMapGeneratorScheduler
@@ -9,6 +11,17 @@ from persistence_calculator.ImageDrawer import ImageDrawer
 from persistence_calculator.PersistenceReader import PersistenceReader
 
 from persistence_calculator.SingularCubeGenerator import SingularCubeGeneratorScheduler
+
+
+def compute_multiple_persistence(graph_list, max_dim, filtration_function, relative_path):
+    if not os.path.exists(relative_path):
+        os.makedirs(relative_path)
+    for graph in graph_list:
+        process = multiprocessing.Process(
+            target=calc_persistence_diagram,
+            args=(graph, max_dim, filtration_function, relative_path))
+        process.start()
+        process.join()
 
 
 def calc_persistence_diagram(graph, max_dim, filtration_function, relative_path):
@@ -27,7 +40,7 @@ def calc_persistence_diagram(graph, max_dim, filtration_function, relative_path)
     print(f"Generated Face Maps: {time.time() - stamp}")
 
     stamp = time.time()
-    scheduler = FiltrationCalculatorScheduler(filtration_function, graph, cubes, cpu_cores*2)
+    scheduler = FiltrationCalculatorScheduler(filtration_function, graph, cubes, cpu_cores * 2)
     filtration = scheduler.run()
     print(f"Calculated filtrations: {time.time() - stamp}")
 

@@ -1,5 +1,3 @@
-
-
 class GaussianCalculator:
     def __init__(self, global_face_maps):
         self.global_face_maps = global_face_maps
