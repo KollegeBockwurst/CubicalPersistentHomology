@@ -9,10 +9,11 @@ from sage.rings import infinity
 
 
 class ImageDrawer:
-    def __init__(self, ordered_persistence, graph, title):
+    def __init__(self, ordered_persistence, graph, title, path):
         self.ordered_persistence = ordered_persistence
         self.graph = graph
         self.title = title
+        self.path = path
 
     def run(self):
 
@@ -67,6 +68,6 @@ class ImageDrawer:
 
         plt.title(f'Barcode Diagram - {self.title}')
         plt.tight_layout()
-        path = self.title.replace("\n", "_").replace(" ", "_") + "_" + str(time.time()) + ".png"
+        path = self.path + self.title.replace("\n", "_").replace(" ", "_") + "_" + str(time.time()) + ".png"
         plt.savefig(path)
         return path

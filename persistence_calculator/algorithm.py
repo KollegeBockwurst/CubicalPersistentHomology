@@ -11,7 +11,8 @@ from persistence_calculator.PersistenceReader import PersistenceReader
 from persistence_calculator.SingularCubeGenerator import SingularCubeGeneratorScheduler
 
 
-def calc_persistence_diagram(graph, max_dim, filtration_function):
+def calc_persistence_diagram(graph, max_dim, filtration_function, relative_path):
+    print(f"Calculating persistence of {graph.name()}")
     cpu_cores = multiprocessing.cpu_count()
     title = f"{graph.name()}-{filtration_function.__name__}-max_dim:{max_dim}"
     stamp = time.time()
@@ -44,7 +45,7 @@ def calc_persistence_diagram(graph, max_dim, filtration_function):
     print(f"Performed persistence reader: {time.time() - stamp}")
 
     stamp = time.time()
-    scheduler = ImageDrawer(ordered_diagram, graph, title)
+    scheduler = ImageDrawer(ordered_diagram, graph, title, relative_path)
     path = scheduler.run()
     print(f"Performed image creation: {time.time() - stamp}")
     print(f"Completed. Total time: {time.time() - start_stamp}")
