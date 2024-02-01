@@ -3,7 +3,7 @@ import time
 from sage.all import *
 from sage.graphs.graph_generators import GraphGenerators
 
-import filtration_functions
+from persistence_calculator import filtration_functions
 import sage_utility
 from persistence_calculator.FaceMapGenerator import FaceMapGeneratorScheduler
 from persistence_calculator.FiltrationCalculator import FiltrationCalculatorScheduler

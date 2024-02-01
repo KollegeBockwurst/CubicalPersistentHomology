@@ -1,6 +1,6 @@
 from multiprocessing import Pool
-from sage.all import Matrix, ZZ
-from sage.matrix.special import block_matrix
+from sage.all import Matrix
+from collections import Counter
 
 
 def generate_face_maps(singular_cubes, start, stop):
@@ -18,7 +18,7 @@ def generate_face_maps(singular_cubes, start, stop):
         face_matrix = [None for _ in range(start_index, stop_index)]
         for j in range(start_index, stop_index):
             # we need to generate the associated row in the result matrix, which is a column of face_matrix
-            matrix_column = [0] * len(singular_cubes[cube_dim - 1])  # initialize coöumn
+            matrix_non_zeros = []  # initialize column
             summand = -1  # summand fluctuating between -1 and 1, representing (-1)^k in the boundary map formula
             for k in range(cube_dim):  # loop through all dimensions of the chosen cube
                 mask = 1 << k  # mask to differentiate between the positive and negative face in this dim
@@ -37,11 +37,13 @@ def generate_face_maps(singular_cubes, start, stop):
                     # it can happen, that a positive/negative face is NOT found. this happens, when it is degenerate
                     # in this case, we just ignore it, since it is 0 in our chain complex (see definition)
                     if face_0 == singular_cubes[cube_dim - 1][cube_index]:
-                        matrix_column[cube_index] += summand
+                        matrix_non_zeros.append(cube_index)
                     if face_1 == singular_cubes[cube_dim - 1][cube_index]:
-                        matrix_column[cube_index] -= summand
+                        matrix_non_zeros.append(cube_index)
                 summand = -summand  # change summand sign
-            face_matrix[j-start_index] = matrix_column  # add column to matrix
+            counts = Counter(matrix_non_zeros)
+            matrix_non_zeros = sorted({x for x in matrix_non_zeros if counts[x] % 2 == 1})
+            face_matrix[j-start_index] = matrix_non_zeros  # add column to matrix
         result[cube_dim] = face_matrix
 
     return result
@@ -91,8 +93,5 @@ class FaceMapGeneratorScheduler:
                     else:
                         face_maps[dim] = p_result[dim]
 
-        for dim in face_maps.keys():
-            face_maps[dim] = Matrix(ZZ, face_maps[dim]).transpose()
-
-        face_maps[0] = Matrix(0, len(self.singular_cubes[0]))
+        face_maps[0] = [[]]*len(self.singular_cubes[0])
         return face_maps

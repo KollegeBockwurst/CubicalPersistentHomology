@@ -253,6 +253,8 @@ def compute_persistence_diagram2(face_maps, filtration):
                 if column[j] % 2 == 1:  # implicit conversion to Ring F_2
                     R[k].append(global_reversed_ordering[start_index + j])
 
+    print(len(R))
+    exit(7)
     print(f'   Create representation R w.r.t. global ordering: {time.time() - start_time}s')
     start_time = time.time()
 

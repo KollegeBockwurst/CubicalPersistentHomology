@@ -1,10 +1,7 @@
 from sage.all import *
 from sage.graphs.graph_generators import GraphGenerators
-import filtration_functions
+from persistence_calculator import filtration_functions
 import sage_utility
-
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
 
 # G = sage.graphs.graph_generators.GraphGenerators.CubeGraph(3)
 # G = Graph([(0,1),(1,2),(2,3),(3,4), (4,5), (5,6), (6,7), (7,0),(0,4),(2,6), (1,5)])
