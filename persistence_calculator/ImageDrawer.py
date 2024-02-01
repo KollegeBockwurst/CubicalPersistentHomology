@@ -68,6 +68,7 @@ class ImageDrawer:
 
         plt.title(f'Barcode Diagram - {self.title}')
         plt.tight_layout()
-        path = self.path + self.title.replace("\n", "_").replace(" ", "_") + "_" + str(time.time()) + ".png"
+        path = self.path + self.title.replace("\n", "_").replace(" ", "_") + ".png"
         plt.savefig(path)
+        plt.close()
         return path

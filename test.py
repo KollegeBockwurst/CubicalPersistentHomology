@@ -3,6 +3,10 @@ from sage.graphs.graph_generators import GraphGenerators
 from persistence_calculator import filtration_functions
 import sage_utility
 
+G = GraphGenerators.smallgraphs.BrouwerHaemersGraph()
+print(G.order())
+exit(2)
+
 # G = sage.graphs.graph_generators.GraphGenerators.CubeGraph(3)
 # G = Graph([(0,1),(1,2),(2,3),(3,4), (4,5), (5,6), (6,7), (7,0),(0,4),(2,6), (1,5)])
 # G = Graph([(0,1),(1,3),(0,2),(2,3),(0,4),(1,5),(2,6),(4,5),(4,6)])

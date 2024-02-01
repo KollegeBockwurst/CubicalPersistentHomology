@@ -43,11 +43,13 @@ for graph in cube_graph_list:
                                                "results/cube_graphs/"))
     thread.start()
     thread.join()
+shutil.make_archive(f"results/cube_graphs", 'zip', "results/cube_graphs")
+shutil.rmtree("results/cube_graphs")
 inform("FinishedCubes")
 
-platonic_graph_list = [GraphGenerators.TetrahedralGraph(), GraphGenerators.HexahedralGraph,
-                       GraphGenerators.DodecahedralGraph, GraphGenerators.OctahedralGraph,
-                       GraphGenerators.IcosahedralGraph]
+platonic_graph_list = [GraphGenerators.TetrahedralGraph(), GraphGenerators.HexahedralGraph(),
+                       GraphGenerators.DodecahedralGraph(), GraphGenerators.OctahedralGraph(),
+                       GraphGenerators.IcosahedralGraph()]
 clear_dir("results/platonic_graphs/")
 for graph in platonic_graph_list:
     thread = threading.Thread(
@@ -60,6 +62,8 @@ for graph in platonic_graph_list:
         args=(graph, 2, filtration_functions.filtrate_by_number_of_vertices, "results/platonic_graphs/"))
     thread.start()
     thread.join()
+shutil.make_archive(f"results/platonic_graphs", 'zip', "results/platonic_graphs")
+shutil.rmtree("results/platonic_graphs")
 inform("FinishedPlatonic")
 
 for name, obj in inspect.getmembers(GraphGenerators.smallgraphs):
@@ -84,6 +88,8 @@ for graph in small_graph_list:
         args=(graph, 2, filtration_functions.filtrate_by_number_of_vertices, "results/small_graphs/"))
     thread.start()
     thread.join()
+shutil.make_archive(f"results/small_graphs", 'zip', "results/small_graphs")
+shutil.rmtree("results/small_graphs")
 inform("FinishedSmallGraphs")
 
 shutil.make_archive(f"results_{time.time()}", 'zip', "results/")
