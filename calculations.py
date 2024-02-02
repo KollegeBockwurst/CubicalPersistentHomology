@@ -41,7 +41,7 @@ inform("FinishedCubes")
 platonic_graph_list = [GraphGenerators.TetrahedralGraph(), GraphGenerators.HexahedralGraph(),
                        GraphGenerators.DodecahedralGraph(), GraphGenerators.OctahedralGraph(),
                        GraphGenerators.IcosahedralGraph()]
-analyze_list(platonic_graph_list, "results/platonic_graphs/")
+analyze_list(platonic_graph_list, 2, "results/platonic_graphs/")
 inform("FinishedPlatonic")
 
 small_graph_list = []
@@ -57,7 +57,7 @@ for name, obj in inspect.getmembers(GraphGenerators.smallgraphs):
             print(f"Function {name} executed successfully.")
         except Exception as e:
             print(f"Error executing function {name}: {e}")
-analyze_list(small_graph_list, "results/small_graphs/")
+analyze_list(small_graph_list, 2, "results/small_graphs/")
 inform("FinishedSmallGraphs")
 
 shutil.make_archive(f"results_{time.time()}", 'zip', "results/")

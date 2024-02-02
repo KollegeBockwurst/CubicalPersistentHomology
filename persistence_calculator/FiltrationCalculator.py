@@ -3,10 +3,8 @@ import numpy as np
 
 
 def calculate_filtration_maps(filtrate_function, graph_adjacency, singular_cubes, start, stop):
-    filtration_values = [None] * stop[0]
+    filtration_values = [None] * (stop[0] + 1)
     inf_counter = 0
-    if stop[1] > 0:
-        filtration_values.append(None)
 
     for cube_dim in range(start[0], stop[0] + 1):
         start_index = start[1] if cube_dim == start[0] else 0
