@@ -81,7 +81,7 @@ class FaceMapGeneratorScheduler:
             if dim >= len(self.singular_cubes):
                 break
 
-        with Pool(self.thread_number) as p:
+        with Pool(len(args)) as p:
             p_results = p.starmap(generate_face_maps, args)
 
         face_maps = dict()  # result dictionary

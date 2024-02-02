@@ -57,7 +57,7 @@ class FiltrationCalculatorScheduler:
             if dim >= len(self.singular_cubes):
                 break
 
-        with Pool(self.thread_number) as p:
+        with Pool(len(args)) as p:
             p_results = p.starmap(calculate_filtration_maps, args)
 
         filtration_values = []

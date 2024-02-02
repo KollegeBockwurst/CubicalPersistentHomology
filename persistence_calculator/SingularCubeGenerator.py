@@ -136,7 +136,7 @@ class SingularCubeGeneratorScheduler:
 
         args = [(adjacency_graph, self.max_dim, start_option) for start_option in start_options]
 
-        with Pool(self.thread_number) as p:
+        with Pool(len(start_options)) as p:
             p_results = p.starmap(generate_singular_cubes, args)
 
         for p_result in p_results:
