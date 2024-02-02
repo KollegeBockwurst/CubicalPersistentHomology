@@ -26,8 +26,8 @@ def analyze_list(graph_list, max_dim, relative_path):
     compute_multiple_persistence(graph_list, max_dim, filtration_functions.filtrate_by_number_of_vertices,
                                  relative_path)
     compute_multiple_persistence(graph_list, max_dim, filtration_functions.filtrate_by_number_of_edges, relative_path)
-    shutil.make_archive(f"results/cube_graphs", 'zip', "results/cube_graphs")
-    shutil.rmtree("results/cube_graphs")
+    shutil.make_archive(relative_path, 'zip', relative_path)
+    shutil.rmtree(relative_path)
 
 
 inform("StartedProgram")
