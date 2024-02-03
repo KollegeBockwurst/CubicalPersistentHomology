@@ -1,3 +1,4 @@
+import os
 import time
 from multiprocessing import Pool
 
@@ -49,8 +50,9 @@ class ImageDrawer:
 
         file_name_title = self.title.replace("\n", "_").replace(" ", "_")
 
-        self.graph.plot().save(filename="temp.png")
-        image_path = "temp.png"
+        session_id = os.urandom(16).hex()
+        self.graph.plot().save(filename=f"{session_id}_temp.png")
+        image_path = f"{session_id}_temp.png"
         img = mpimg.imread(image_path)
         ax1.imshow(img)
         ax1.axis('off')
@@ -66,9 +68,10 @@ class ImageDrawer:
         # Removing axes
         ax3.axis('off')
 
-        plt.title(f'Barcode Diagram - {self.title}')
+        plt.title(f'Barcode Diagram - {self.title}', wrap=True)
         plt.tight_layout()
         path = self.path + self.title.replace("\n", "_").replace(" ", "_") + ".png"
         plt.savefig(path)
         plt.close()
+        os.remove(image_path)
         return path

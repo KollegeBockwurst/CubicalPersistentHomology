@@ -1,6 +1,12 @@
 from multiprocessing import Pool
 import numpy as np
 
+'''
+_________________________________________________________________________________________________
+NOW INCLUDED IN SINGULAR_CUBE_GENERATOR, DOES NOT FILTER FILTRATION_VALUES, MIGHT STILL BE USEFUL
+-------------------------------------------------------------------------------------------------
+'''
+
 
 def calculate_filtration_maps(filtrate_function, graph_adjacency, singular_cubes, start, stop):
     filtration_values = [None] * (stop[0] + 1)

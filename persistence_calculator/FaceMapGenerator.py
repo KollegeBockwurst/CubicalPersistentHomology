@@ -4,9 +4,7 @@ from collections import Counter
 
 
 def generate_face_maps(singular_cubes, start, stop):
-    result = [None] * stop[0]
-    if stop[1] > 0:
-        result.append(None)
+    result = [None] * (stop[0] + 1)
 
     for cube_dim in range(start[0], stop[0] + 1):
         start_index = start[1] if cube_dim == start[0] else 0

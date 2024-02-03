@@ -24,14 +24,14 @@ def compute_multiple_persistence(graph_list, max_dim, filtration_function, relat
         process.join()
 
 
-def calc_persistence_diagram(graph, max_dim, filtration_function, relative_path):
+def calc_persistence_diagram(graph, max_dim, filtration_function, max_filtration, relative_path):
     print(f"Calculating persistence of {graph.name()}")
     cpu_cores = multiprocessing.cpu_count()
-    title = f"{graph.name()}-{filtration_function.__name__}-max_dim:{max_dim}"
+    title = f"{graph.name()}-{filtration_function.__name__}-max_dim:{max_dim}-max_filt:{max_filtration}"
     stamp = time.time()
     start_stamp = stamp
-    scheduler = SingularCubeGeneratorScheduler(graph, max_dim + 1, cpu_cores * 2)
-    cubes = scheduler.run()
+    scheduler = SingularCubeGeneratorScheduler(graph, max_dim + 1, filtration_function, max_filtration, cpu_cores * 2)
+    cubes, filtration = scheduler.run()
     print(f"Generated Cubes: {time.time() - stamp}")
 
     stamp = time.time()
@@ -40,12 +40,7 @@ def calc_persistence_diagram(graph, max_dim, filtration_function, relative_path)
     print(f"Generated Face Maps: {time.time() - stamp}")
 
     stamp = time.time()
-    scheduler = FiltrationCalculatorScheduler(filtration_function, graph, cubes, cpu_cores * 2)
-    filtration = scheduler.run()
-    print(f"Calculated filtrations: {time.time() - stamp}")
-
-    stamp = time.time()
-    scheduler = GlobalOrderingCalculator(face_maps, filtration)
+    scheduler = GlobalOrderingCalculator(face_maps, filtration, cpu_cores*2)
     global_face_maps, global_filtration, global_dimension = scheduler.run()
     print(f"Calculated global ordering: {time.time() - stamp}")
     stamp = time.time()

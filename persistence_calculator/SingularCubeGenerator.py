@@ -1,9 +1,13 @@
 from multiprocessing import Pool
+import numpy as np
 from sage.all import Graph, identity_matrix
 
-def generate_singular_cubes(adjacency_graph, max_dim: int, start_options: list):
+
+def generate_singular_cubes(adjacency_graph, max_dim: int, filtrate_function, max_filtration: int, start_options: list):
     """
     Takes a sage graph and computes all singular, non-degenerate cubes up to dimension max_dim
+    :param max_filtration:
+    :param filtrate_function:
     :param start_options:
     :param adjacency_graph: An undirected sage graph
     :param max_dim: Maximum dimension to take into account.
@@ -11,7 +15,9 @@ def generate_singular_cubes(adjacency_graph, max_dim: int, start_options: list):
     non-degenerate singular cubes of dimension i. A singular cube of dimension i is represented as list of length 2^i,
     containing the image indices of a i-dimensional cube graph, sorted in lexiographical order
     """
-    result = [[] for _ in range(max_dim + 1)]  # create list of independent lists
+    singular_cubes = [[] for _ in range(max_dim + 1)]  # create list of independent lists
+    filtration_values = [[] for _ in range(max_dim + 1)]
+
     order_graph = adjacency_graph.nrows()
     order_max_cube = pow(2, max_dim)  # number of vertices in a cube graph of dimension max_dim
 
@@ -21,6 +27,8 @@ def generate_singular_cubes(adjacency_graph, max_dim: int, start_options: list):
     options = [[] for _ in range(order_max_cube)]  # create list of independent lists
     options[0] = start_options  # initialize options[0], since this is always possible
     cube_mapping = [None] * order_max_cube  # saves the current state of the mapping
+
+    np_adjacency = np.matrix(adjacency_graph)
 
     loop_flag = True  # will be set to false once it is clear that there are no singular cubes left
     while loop_flag:  # main loop
@@ -73,7 +81,14 @@ def generate_singular_cubes(adjacency_graph, max_dim: int, start_options: list):
                             break
                     # check if the cube was degenerated in any dimension. If not, add it to the output list:
                     if not degeneracy_flag:
-                        result[cube_dim].append(singular_cube)
+                        # compute the cube's filtration
+                        unique_image = np.unique(singular_cube)
+                        subgraph_adjacency = np_adjacency[np.ix_(unique_image, unique_image)]
+                        filtration_value = filtrate_function(subgraph_adjacency)
+                        # check if filtration value is less than infinity
+                        if filtration_value < max_filtration:
+                            filtration_values[cube_dim].append(filtration_value)
+                            singular_cubes[cube_dim].append(singular_cube)
 
                 # ----------
                 # generate the options for the next vertex (change_index + 1), if there is a next vertex:
@@ -112,34 +127,42 @@ def generate_singular_cubes(adjacency_graph, max_dim: int, start_options: list):
             if change_index == 0:
                 loop_flag = False  # no more singular cubes possible, leave main loop
 
-    return result
+    return singular_cubes, filtration_values
 
 
 class SingularCubeGeneratorScheduler:
-    def __init__(self, graph: Graph, max_dim: int, thread_number: int):
+    def __init__(self, graph: Graph, max_dim: int, filtration_function, max_filtration: int, thread_number: int):
         self.max_dim = max_dim
         self.graph = graph
         self.thread_number = thread_number
+        self.filtration_function = filtration_function
+        self.max_filtration = max_filtration + 1
+        # manual adjustment in cae of inf values, so that later comparisons still work
 
     def run(self):
         adjacency_graph = self.graph.adjacency_matrix() + identity_matrix(self.graph.order())  # adjacency matrix of
         # the given graph
-        result = [[] for _ in range(self.max_dim + 1)]
+        singular_cubes = [[] for _ in range(self.max_dim + 1)]
+        filtration_values = [[] for _ in range(self.max_dim + 1)]
         start_options = []
-        numbers_per_thread = (self.graph.order() // self.thread_number)+1
+        numbers_per_thread = (self.graph.order() // self.thread_number) + 1
         for i in range(self.thread_number):
-            start_index = i*numbers_per_thread
-            stop_index = min((i+1)*numbers_per_thread, self.graph.order())
+            start_index = i * numbers_per_thread
+            stop_index = min((i + 1) * numbers_per_thread, self.graph.order())
             start_options.append(list(range(start_index, stop_index)))
             if stop_index == self.graph.order():
                 break
 
-        args = [(adjacency_graph, self.max_dim, start_option) for start_option in start_options]
+        args = [(adjacency_graph, self.max_dim, self.filtration_function, self.max_filtration, start_option) for
+                start_option in start_options]
 
         with Pool(len(start_options)) as p:
             p_results = p.starmap(generate_singular_cubes, args)
 
         for p_result in p_results:
+            p_cubes, p_filtrations = p_result
             for i in range(self.max_dim + 1):
-                result[i].extend(p_result[i])
-        return result
+                singular_cubes[i].extend(p_cubes[i])
+                filtration_values[i].extend(p_filtrations[i])
+
+        return singular_cubes, filtration_values
