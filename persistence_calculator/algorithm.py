@@ -19,7 +19,7 @@ def compute_multiple_persistence(graph_list, max_dim, filtration_function, relat
     for graph in graph_list:
         process = multiprocessing.Process(
             target=calc_persistence_diagram,
-            args=(graph, max_dim, filtration_function, relative_path))
+            args=(graph, max_dim, filtration_function, float("inf"), relative_path))
         process.start()
         process.join()
 

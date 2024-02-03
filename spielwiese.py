@@ -1,4 +1,5 @@
-list_of_lists = [[1, 2], [3, 4, 5], [6]]
-indices = [i for i, sublist in enumerate(list_of_lists) for _ in sublist]
+my_list = [4,2,7,4,5,6,2]
+print(my_list[3:18])
+sorted_positions = [i[0] for i in sorted(enumerate(my_list), key=lambda x: x[1])]
+print(sorted_positions)
 
-print(indices)
