@@ -41,6 +41,9 @@ def generate_singular_cubes(adjacency_graph, max_dim: int, filtrate_function, ma
         # we generate the options "left to right", starting with vertex 0 (see initialization of options)
         # therefore, we will look for the vertex with existing options the furthest on the right
 
+        filtration_flag = False
+        # saves if there was a singular cube found with too hight filtration value to prevent generating of new options
+
         for change_index in range(order_max_cube - 1, -1, -1):  # loop cube vertices from right to left
             if len(options[change_index]) > 0:  # check for existing options
                 cube_mapping[change_index] = options[change_index].pop(0)  # apply the option to cube_mapping
@@ -85,14 +88,15 @@ def generate_singular_cubes(adjacency_graph, max_dim: int, filtrate_function, ma
                         unique_image = np.unique(singular_cube)
                         subgraph_adjacency = np_adjacency[np.ix_(unique_image, unique_image)]
                         filtration_value = filtrate_function(subgraph_adjacency)
+                        filtration_flag = filtration_value >= max_filtration
                         # check if filtration value is less than infinity
-                        if filtration_value < max_filtration:
+                        if not filtration_flag:
                             filtration_values[cube_dim].append(filtration_value)
                             singular_cubes[cube_dim].append(singular_cube)
 
                 # ----------
                 # generate the options for the next vertex (change_index + 1), if there is a next vertex:
-                if change_index < order_max_cube - 1:
+                if change_index < order_max_cube - 1 and not filtration_flag:
                     next_options = []  # saves the found options for vertex change_index+1
                     for possible_option in range(order_graph):  # loop through all possible options for the mapping
                         # we now need to check if we still have a graph map if vertex change_index+1 gets mapped to
