@@ -3,12 +3,12 @@ import numpy as np
 from sage.all import Graph, identity_matrix
 
 
-def generate_singular_cubes(adjacency_graph, max_dim: int, filtrate_function, max_filtration: int, start_options: list):
+def generate_singular_cubes(adjacency_graph, max_dim: int, filtrate_function, max_filtration: int, start_option, end_option):
     """
     Takes a sage graph and computes all singular, non-degenerate cubes up to dimension max_dim
+    :param start_option:
     :param max_filtration:
     :param filtrate_function:
-    :param start_options:
     :param adjacency_graph: An undirected sage graph
     :param max_dim: Maximum dimension to take into account.
     :return: A list of length max_dim + 1 containing singular cubes, where the i-th entry contains a list aof all
@@ -25,7 +25,7 @@ def generate_singular_cubes(adjacency_graph, max_dim: int, filtrate_function, ma
     # my_graph "possible" always relates to the mapping saved in cube_mapping[0:i]
 
     options = [[] for _ in range(order_max_cube)]  # create list of independent lists
-    options[0] = start_options  # initialize options[0], since this is always possible
+    options[0] = list(range(order_graph))  # initialize options[0], since this is always possible
     cube_mapping = [None] * order_max_cube  # saves the current state of the mapping
 
     np_adjacency = np.matrix(adjacency_graph)
@@ -48,9 +48,15 @@ def generate_singular_cubes(adjacency_graph, max_dim: int, filtrate_function, ma
             if len(options[change_index]) > 0:  # check for existing options
                 cube_mapping[change_index] = options[change_index].pop(0)  # apply the option to cube_mapping
 
+                # check if cube_mapping is in own range
+                own_range = start_option[0:change_index + 1] <= cube_mapping[0:change_index + 1] < end_option
+                if not own_range:
+                    if cube_mapping[0:change_index + 1] >= end_option:
+                        loop_flag = False
+                    break
                 # ----------
                 # check if change_index+1 == 2^x, i.e. change_index is last vertex of a cube (of dim x):
-                if (change_index + 1) & change_index == 0:
+                if (change_index + 1) & change_index == 0 and start_option <= cube_mapping[0:change_index + 1]:
 
                     # to find the cube_dim x, we compute log_2(change_index+1) by using bit operations:
                     cube_dim = 0
@@ -149,15 +155,28 @@ class SingularCubeGeneratorScheduler:
         singular_cubes = [[] for _ in range(self.max_dim + 1)]
         filtration_values = [[] for _ in range(self.max_dim + 1)]
         start_options = []
-        numbers_per_thread = (self.graph.order() // self.thread_number) + 1
-        for i in range(self.thread_number):
-            start_index = i * numbers_per_thread
-            stop_index = min((i + 1) * numbers_per_thread, self.graph.order())
-            start_options.append(list(range(start_index, stop_index)))
-            if stop_index == self.graph.order():
-                break
 
-        args = [(adjacency_graph, self.max_dim, self.filtration_function, self.max_filtration, start_option) for
+        def decimal_to_base_fixed_size(number, base, size):
+            digits = []
+            while number:
+                digits.append(int(number % base))
+                number //= base
+            while len(digits) < size:
+                digits.append(0)
+            return digits[::-1]
+
+        max_vertex_number = pow(2, self.max_dim)
+        number_of_options = pow(self.graph.order(), max_vertex_number)
+        numbers_per_thread = (number_of_options // self.thread_number) + 1
+        last_stop = [0]*max_vertex_number
+        for i in range(0, number_of_options, numbers_per_thread):
+            start_index = last_stop
+            last_stop = [float("inf")] if i+numbers_per_thread >= number_of_options else \
+                decimal_to_base_fixed_size(i+numbers_per_thread, self.graph.order(), max_vertex_number)
+            stop_index = last_stop
+            start_options.append((start_index, stop_index))
+
+        args = [(adjacency_graph, self.max_dim, self.filtration_function, self.max_filtration) + start_option for
                 start_option in start_options]
 
         with Pool(len(start_options)) as p:
