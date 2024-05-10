@@ -13,3 +13,4 @@ post_octaeder = Graph([(0, 1), (1, 2), (2, 0), (0, 3), (1, 3), (2, 3),
 post_octaeder.name("Post_Octaeder")
 G = sage.graphs.graph_generators.GraphGenerators.CubeGraph(3)
 calc_persistence_diagram(G, 2, filtration_functions.filtrate_by_diameter, float("inf"), "")
+#asdasd
